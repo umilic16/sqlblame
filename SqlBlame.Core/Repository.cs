@@ -13,21 +13,19 @@ public class Repository(SqlConnection connection)
             select TsqlCommand
             from dbo.DdlLog
             where SchemaName=@schema and ObjectName=@sp
-            order by EventTime desc
             """, new { schema, sp });
 
         return tsqlList;
     }
 
-    public async Task<IEnumerable<DdlLogEntry>> GetDdlLogEntryBySpName(string schema, string sp)
+    public async Task<DdlLogEntry[]> GetDdlLogEntryBySpName(string schema, string sp)
     {
         var tsqlList = await _connection.QueryAsync<DdlLogEntry>("""
             select *
             from dbo.DdlLog
             where SchemaName=@schema and ObjectName=@sp
-            order by EventTime desc
             """, new { schema, sp });
 
-        return tsqlList;
+        return [.. tsqlList];
     }
 }

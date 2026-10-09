@@ -6,11 +6,9 @@ public record DdlLogEntry(int Id, DateTime EventTime, string OriginalLogin, stri
     public override string ToString()
     {
         return $"""
-            ---------------------------------------------------
-            {Id}: [{EventTime}] - {OriginalLogin} / {HostName}
 
-            {TsqlCommand}
             ---------------------------------------------------
+            [{EventTime}] {OriginalLogin} / {HostName}
             """;
     }
 }
