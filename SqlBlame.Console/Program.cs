@@ -9,9 +9,9 @@ var connectionString = $"Server={server};Database={db};User ID={user};Password={
 var connection = new SqlConnection(connectionString);
 
 var repo = new Repository(connection);
-var tsqlList = await repo.GetBySpName("upZ", "PregledLagerListe");
+var entries = await repo.GetDdlLogEntryBySpName("upZ", "PregledLagerListe");
 
-foreach (var tsql in tsqlList)
+foreach (var entry in entries)
 {
-    Console.WriteLine(tsql);
+    Console.WriteLine(entry);
 }
