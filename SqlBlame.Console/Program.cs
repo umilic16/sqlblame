@@ -59,13 +59,8 @@ try
 
     long lastId = 0;
     var entries = await repo.GetAlterProcedureEntries(lastId, selectedDbs);
-    foreach (var entry in entries)
-    {
-        if (selectedDbs.Count > 1)
-            table.InsertRow(0, entry.EventTime.ToString(), entry.User, entry.DatabaseName, entry.SchemaName, entry.ObjectName);
-        else
-            table.InsertRow(0, entry.EventTime.ToString(), entry.User, entry.SchemaName, entry.ObjectName);
-    }
+    var showDbColumn = selectedDbs.Count > 1;
+    AddEntriesToTable(table, entries, showDbColumn);
     if (entries.Length > 0)
         lastId = entries[^1].Id;
 
@@ -76,13 +71,7 @@ try
             while (true)
             {
                 var entries = await repo.GetAlterProcedureEntries(lastId, selectedDbs);
-                foreach (var entry in entries)
-                {
-                    if (selectedDbs.Count > 1)
-                        table.InsertRow(0, entry.EventTime.ToString(), entry.User, entry.DatabaseName, entry.SchemaName, entry.ObjectName);
-                    else
-                        table.InsertRow(0, entry.EventTime.ToString(), entry.User, entry.SchemaName, entry.ObjectName);
-                }
+                AddEntriesToTable(table, entries, showDbColumn);
                 if (entries.Length > 0)
                 {
                     lastId = entries[^1].Id;
@@ -153,5 +142,20 @@ static async Task ExportLog(string directory)
     finally
     {
         Environment.ExitCode = 1;
+    }
+}
+
+static void AddEntriesToTable(Table table, DdlLogEntry[] entries, bool showDbColumn)
+{
+    foreach (var entry in entries)
+    {
+        string[] cells;
+        if (showDbColumn)
+            cells = [entry.EventTime.ToString(), entry.User, entry.DatabaseName, entry.SchemaName, entry.ObjectName];
+        else
+            cells = [entry.EventTime.ToString(), entry.User, entry.SchemaName, entry.ObjectName];
+
+
+        table.InsertRow(0, [.. cells.Select(Markup.Escape)]);
     }
 }
