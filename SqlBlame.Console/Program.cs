@@ -27,16 +27,16 @@ try
     AnsiConsole.Write(figlet);
     AnsiConsole.Write(versionText);
     AnsiConsole.Record();
-    var serverPrompt = new TextPrompt<string>("server:").DefaultValue(appSettings.DefaultValues.Server).ShowDefaultValue();
+    var serverPrompt = new TextPrompt<string>("server:").DefaultValue(appSettings.ServerSettings.ServerName).ShowDefaultValue();
     var server = AnsiConsole.Prompt(serverPrompt);
 
-    var dbPrompt = new TextPrompt<string>("log database:").DefaultValue(appSettings.DefaultValues.Database).ShowDefaultValue();
+    var dbPrompt = new TextPrompt<string>("log database:").DefaultValue(appSettings.ServerSettings.Database).ShowDefaultValue();
     var db = AnsiConsole.Prompt(dbPrompt);
 
-    var userPrompt = new TextPrompt<string>("user:").DefaultValue(appSettings.DefaultValues.User).ShowDefaultValue();
+    var userPrompt = new TextPrompt<string>("user:").DefaultValue(appSettings.ServerSettings.User).ShowDefaultValue();
     var user = AnsiConsole.Prompt(userPrompt);
 
-    var passPrompt = new TextPrompt<string>("pass:").DefaultValue(appSettings.DefaultValues.Password).ShowDefaultValue().Secret();
+    var passPrompt = new TextPrompt<string>("pass:").DefaultValue(appSettings.ServerSettings.Password).ShowDefaultValue().Secret();
     var pass = AnsiConsole.Prompt(passPrompt);
 
     var connectionString = $"Server={server};Database={db};User ID={user};Password={pass};MultipleActiveResultSets=True;TrustServerCertificate=True";
