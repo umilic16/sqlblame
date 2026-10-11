@@ -10,4 +10,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SqlBlame.Core\SqlBlame.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="appsettings*.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
