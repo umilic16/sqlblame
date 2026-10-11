@@ -35,7 +35,7 @@ public class Repository(SqlConnection connection)
             select *
             from dbo.DdlLog
             where EventType = 'ALTER_PROCEDURE'
-            order by EventTime desc
+            order by Id desc
             """);
 
         return [.. tsqlList];
