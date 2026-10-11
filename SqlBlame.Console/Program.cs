@@ -43,17 +43,53 @@ try
     var connection = new SqlConnection(connectionString);
 
     var repo = new Repository(connection);
-    var entries = await repo.GetAlterProcedureEntries();
 
-    var table = new Table().AddColumn("event-time").AddColumn("user").AddColumn("schema-name").AddColumn("sp-name");
+    var dbs = await repo.GetDbs();
+
+    var selectedDbs = AnsiConsole.Prompt(
+        new MultiSelectionPrompt<string>().Title("Select one or more DBs").AddChoices(dbs));
+
+    AnsiConsole.WriteLine("Selected DBs: {0}", string.Join(", ", selectedDbs));
+
+    var table = new Table().AddColumn("event-time").AddColumn("user");
+    if (selectedDbs.Count > 1)
+        table.AddColumn("db").AddColumn("schema-name").AddColumn("sp-name");
+    else
+        table.AddColumn("schema-name").AddColumn("sp-name");
+
+    long lastId = 0;
+    var entries = await repo.GetAlterProcedureEntries(lastId, selectedDbs);
     foreach (var entry in entries)
     {
-        table.AddRow(entry.EventTime.ToString(), entry.User, entry.SchemaName, entry.ObjectName);
+        if (selectedDbs.Count > 1)
+            table.InsertRow(0, entry.EventTime.ToString(), entry.User, entry.DatabaseName, entry.SchemaName, entry.ObjectName);
+        else
+            table.InsertRow(0, entry.EventTime.ToString(), entry.User, entry.SchemaName, entry.ObjectName);
     }
+    if (entries.Length > 0)
+        lastId = entries[^1].Id;
 
-    AnsiConsole.Live(table)
-        .Start(ctx =>
+    await AnsiConsole.Live(table)
+        .StartAsync(async ctx =>
         {
+            ctx.Refresh();
+            while (true)
+            {
+                var entries = await repo.GetAlterProcedureEntries(lastId, selectedDbs);
+                foreach (var entry in entries)
+                {
+                    if (selectedDbs.Count > 1)
+                        table.InsertRow(0, entry.EventTime.ToString(), entry.User, entry.DatabaseName, entry.SchemaName, entry.ObjectName);
+                    else
+                        table.InsertRow(0, entry.EventTime.ToString(), entry.User, entry.SchemaName, entry.ObjectName);
+                }
+                if (entries.Length > 0)
+                {
+                    lastId = entries[^1].Id;
+                    ctx.Refresh();
+                }
+                await Task.Delay(1000);
+            }
         });
 
     //var commands = entries.Select(x => x.TsqlCommand).ToArray();

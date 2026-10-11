@@ -29,16 +29,26 @@ public class Repository(SqlConnection connection)
         return [.. tsqlList];
     }
 
-    public async Task<DdlLogEntry[]> GetAlterProcedureEntries()
+    public async Task<DdlLogEntry[]> GetAlterProcedureEntries(long afterId, List<string> dbs)
     {
-        var tsqlList = await _connection.QueryAsync<DdlLogEntry>("""
+        var entries = await _connection.QueryAsync<DdlLogEntry>("""
             select *
             from dbo.DdlLog
-            where EventType = 'ALTER_PROCEDURE'
-            order by Id desc
-            """);
+            where EventType = 'ALTER_PROCEDURE' and Id > @afterId and DatabaseName in @dbs
+            order by Id
+            """, new { afterId, dbs });
 
-        return [.. tsqlList];
+        return [.. entries];
     }
 
+    public async Task<string[]> GetDbs()
+    {
+        var dbs = await _connection.QueryAsync<string>("""
+            select distinct(DatabaseName)
+            from dbo.DdlLog
+            where EventType = 'ALTER_PROCEDURE'
+            """);
+
+        return [.. dbs];
+    }
 }
