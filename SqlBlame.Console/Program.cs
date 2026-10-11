@@ -49,7 +49,7 @@ try
     var selectedDbs = AnsiConsole.Prompt(
         new MultiSelectionPrompt<string>().Title("Select one or more DBs").AddChoices(dbs));
 
-    AnsiConsole.WriteLine("Selected DBs: {0}", string.Join(", ", selectedDbs));
+    AnsiConsole.WriteLine("selected DBs: {0}", string.Join(", ", selectedDbs));
 
     var table = new Table().AddColumn("event-time").AddColumn("user");
     if (selectedDbs.Count > 1)
