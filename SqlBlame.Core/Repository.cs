@@ -34,7 +34,7 @@ public class Repository(SqlConnection connection)
         var entries = await _connection.QueryAsync<DdlLogEntry>("""
             select *
             from dbo.DdlLog
-            where EventType = 'ALTER_PROCEDURE' and Id > @afterId and DatabaseName in @dbs
+            where EventType in ('CREATE_PROCEDURE', 'ALTER_PROCEDURE') and Id > @afterId and DatabaseName in @dbs
             order by Id
             """, new { afterId, dbs });
 
@@ -46,7 +46,7 @@ public class Repository(SqlConnection connection)
         var dbs = await _connection.QueryAsync<string>("""
             select distinct(DatabaseName)
             from dbo.DdlLog
-            where EventType = 'ALTER_PROCEDURE'
+            where EventType in ('CREATE_PROCEDURE', 'ALTER_PROCEDURE')
             """);
 
         return [.. dbs];
