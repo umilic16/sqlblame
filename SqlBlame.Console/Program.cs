@@ -1,9 +1,11 @@
 ﻿using System.Reflection;
+using DiffPlex.DiffBuilder.Model;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Spectre.Console;
+using Spectre.Console.Rendering;
 using SqlBlame.Console;
 using SqlBlame.Core;
 
@@ -106,6 +108,20 @@ try
         var selected = byId[choice];
         AnsiConsole.Clear();
         AnsiConsole.Write(new Rule(Markup.Escape($"{selected.DatabaseName}.{selected.SchemaName}.{selected.ObjectName} · {selected.EventTime} · {selected.User}")));
+        var previous = await repo.GetPreviousVersion(selected);
+        if (previous is null)
+        {
+            AnsiConsole.MarkupLine("[dim]first recorded version, nothing to compare with[/]");
+            AnsiConsole.WriteLine();
+            AnsiConsole.Write(new Text(selected.TsqlCommand));
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[dim]compared to {previous.EventTime} · {Markup.Escape(previous.User)}[/]");
+            AnsiConsole.WriteLine();
+            AnsiConsole.Write(RenderDiff(previous.TsqlCommand, selected.TsqlCommand));
+        }
+        AnsiConsole.WriteLine();
         AnsiConsole.Markup("[dim]Press any key to go back...[/]");
         Console.ReadKey(intercept: true);
     }
@@ -144,17 +160,15 @@ static async Task ExportLog(string directory)
     }
 }
 
-static void AddEntriesToTable(Table table, DdlLogEntry[] entries, bool showDbColumn)
+static IRenderable RenderDiff(string oldText, string newText)
 {
-    foreach (var entry in entries)
-    {
-        string[] cells;
-        if (showDbColumn)
-            cells = [entry.EventTime.ToString(), entry.User, entry.DatabaseName, entry.SchemaName, entry.ObjectName];
-        else
-            cells = [entry.EventTime.ToString(), entry.User, entry.SchemaName, entry.ObjectName];
+    var rows = DiffBuilder.GetDiff(oldText, newText).Lines
+        .Select(line => line.Type switch
+        {
+            ChangeType.Inserted => new Text("+ " + line.Text, new Style(Color.Green)),
+            ChangeType.Deleted => new Text("- " + line.Text, new Style(Color.Red)),
+            _ => new Text("  " + line.Text, new Style(Color.Grey)),
+        });
 
-
-        table.InsertRow(0, [.. cells.Select(Markup.Escape)]);
-    }
+    return new Rows(rows);
 }

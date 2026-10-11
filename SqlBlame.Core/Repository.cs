@@ -51,4 +51,16 @@ public class Repository(SqlConnection connection)
 
         return [.. dbs];
     }
+
+    public async Task<DdlLogEntry?> GetPreviousVersion(DdlLogEntry entry)
+    {
+        return await _connection.QueryFirstOrDefaultAsync<DdlLogEntry>("""
+            select top 1 *
+            from dbo.DdlLog
+            where DatabaseName = @DatabaseName and SchemaName = @SchemaName and ObjectName = @ObjectName
+              and EventType in ('CREATE_PROCEDURE', 'ALTER_PROCEDURE')
+              and Id < @Id
+            order by Id desc
+            """, entry);
+    }
 }
