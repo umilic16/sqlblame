@@ -7,6 +7,7 @@ using Spectre.Console;
 using SqlBlame.Console;
 using SqlBlame.Core;
 
+Console.OutputEncoding = System.Text.Encoding.UTF8;
 AppSettings appSettings = new();
 const string AppName = "SqlBlame";
 try
@@ -51,65 +52,63 @@ try
 
     AnsiConsole.WriteLine("selected DBs: {0}", string.Join(", ", selectedDbs));
 
-    var table = new Table().AddColumn("event-time").AddColumn("user");
-    if (selectedDbs.Count > 1)
-        table.AddColumn("db").AddColumn("schema-name").AddColumn("sp-name");
-    else
-        table.AddColumn("schema-name").AddColumn("sp-name");
+    const long RefreshChoice = -1;
+    const long ExitChoice = -2;
 
-    long lastId = 0;
-    var entries = await repo.GetAlterProcedureEntries(lastId, selectedDbs);
     var showDbColumn = selectedDbs.Count > 1;
-    AddEntriesToTable(table, entries, showDbColumn);
-    if (entries.Length > 0)
-        lastId = entries[^1].Id;
+    var entries = new List<DdlLogEntry>();
+    long lastId = 0;
+    long selectedId = RefreshChoice;
 
-    await AnsiConsole.Live(table)
-        .StartAsync(async ctx =>
+    while (true)
+    {
+        var newEntries = await repo.GetAlterProcedureEntries(lastId, selectedDbs);
+        foreach (var entry in newEntries)
         {
-            ctx.Refresh();
-            while (true)
-            {
-                var entries = await repo.GetAlterProcedureEntries(lastId, selectedDbs);
-                AddEntriesToTable(table, entries, showDbColumn);
-                if (entries.Length > 0)
-                {
-                    lastId = entries[^1].Id;
-                    ctx.Refresh();
-                }
-                await Task.Delay(1000);
-            }
-        });
+            entries.Insert(0, entry);
+        }
+        if (newEntries.Length > 0)
+            lastId = newEntries[^1].Id;
 
-    //var commands = entries.Select(x => x.TsqlCommand).ToArray();
-    //for (int i = entries.Length - 1; i > 1; i--)
-    //{
-    //    var diff = DiffBuilder.GetDiff(commands[i - 1], commands[i]);
+        var byId = entries.ToDictionary(e => e.Id);
+        var userWidth = entries.Select(e => e.User.Length).Append("user".Length).Max();
+        var dbWidth = entries.Select(e => e.DatabaseName.Length).Append("db".Length).Max();
+        string FormatRow(string time, string user, string db, string sp) => showDbColumn
+            ? $"{time,-19}  {user.PadRight(userWidth)}  {db.PadRight(dbWidth)}  {sp}"
+            : $"{time,-19}  {user.PadRight(userWidth)}  {sp}";
 
-    //    Console.WriteLine(entries[i]);
-    //    var savedColor = Console.ForegroundColor;
-    //    foreach (var line in diff.Lines)
-    //    {
-    //        switch (line.Type)
-    //        {
-    //            case ChangeType.Inserted:
-    //                Console.ForegroundColor = ConsoleColor.Green;
-    //                Console.Write("+ ");
-    //                break;
-    //            case ChangeType.Deleted:
-    //                Console.ForegroundColor = ConsoleColor.Red;
-    //                Console.Write("- ");
-    //                break;
-    //            default:
-    //                Console.ForegroundColor = ConsoleColor.Gray; // compromise for dark or light background
-    //                Console.Write("  ");
-    //                break;
-    //        }
+        var header = FormatRow("event-time", "user", "db", "sp-name");
+        var prompt = new SelectionPrompt<long>()
+            .Title($"[dim]↑↓ move · type to search · Enter open · Esc quit[/]\n[bold]  {Markup.Escape(header)}[/]")
+            .PageSize(Math.Max(3, Console.WindowHeight - 6))
+            .EnableSearch()
+            .AddCancelResult(ExitChoice)
+            .AddChoices(RefreshChoice)
+            .AddChoices(entries.Select(e => e.Id))
+            .DefaultValue(byId.ContainsKey(selectedId) ? selectedId : entries.FirstOrDefault()?.Id ?? RefreshChoice)
+            .UseConverter(id => id == RefreshChoice
+                ? "[dim]↻ refresh[/]"
+                : Markup.Escape(FormatRow(
+                    $"{byId[id].EventTime:yyyy-MM-dd HH:mm:ss}",
+                    byId[id].User,
+                    byId[id].DatabaseName,
+                    $"{byId[id].SchemaName}.{byId[id].ObjectName}")));
 
-    //        Console.WriteLine(line.Text);
-    //    }
-    //    Console.ForegroundColor = savedColor;
-    //}
+        AnsiConsole.Clear();
+        var choice = AnsiConsole.Prompt(prompt);
+        if (choice == ExitChoice)
+            break;
+
+        selectedId = choice;
+        if (choice == RefreshChoice)
+            continue;
+
+        var selected = byId[choice];
+        AnsiConsole.Clear();
+        AnsiConsole.Write(new Rule(Markup.Escape($"{selected.DatabaseName}.{selected.SchemaName}.{selected.ObjectName} · {selected.EventTime} · {selected.User}")));
+        AnsiConsole.Markup("[dim]Press any key to go back...[/]");
+        Console.ReadKey(intercept: true);
+    }
 }
 catch (Exception ex)
 {
