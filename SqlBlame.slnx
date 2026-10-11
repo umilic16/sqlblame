@@ -4,6 +4,7 @@
     <File Path=".gitignore" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
+    <File Path="README.md" />
   </Folder>
   <Project Path="SqlBlame.Console/SqlBlame.Console.csproj" />
   <Project Path="SqlBlame.Core/SqlBlame.Core.csproj" />

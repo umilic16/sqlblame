@@ -1,6 +1,6 @@
 # SqlBlame
 
-A small .NET console tool for browsing the change history of stored procedures on a SQL Server dev server, similar to `git log` / `git show`.
+A small .NET console tool for browsing the change history of SQL Server stored procedures, similar to `git log` / `git show`.
 
 It reads a DDL log table filled by a server-level DDL trigger, lists the recorded changes and shows a colored diff between a selected version and the previous one.
 
