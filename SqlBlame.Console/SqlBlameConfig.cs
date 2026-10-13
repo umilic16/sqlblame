@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 
 namespace SqlBlame.Console;
 
-public class AppSettings
+public class SqlBlameConfig
 {
     public string ServerName { get; set; } = "localhost";
     public string Database { get; set; } = "DevAudit";

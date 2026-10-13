@@ -11,24 +11,23 @@ using SqlBlame.Console;
 using SqlBlame.Core;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
-AppSettings appSettings = new();
 const string AppName = "SqlBlame";
 try
 {
     // later sources override earlier ones: config file < SQLBLAME_* env vars < command line
     var builder = Host.CreateEmptyApplicationBuilder(new());
     builder.Configuration
-        .AddJsonFile(AppSettings.FilePath, optional: true)
+        .AddJsonFile(SqlBlameConfig.FilePath, optional: true)
         .AddEnvironmentVariables("SQLBLAME_")
         .AddCommandLine(args);
 
-    builder.Services.AddOptions<AppSettings>()
+    builder.Services.AddOptions<SqlBlameConfig>()
                     .Bind(builder.Configuration)
                     .ValidateDataAnnotations()
                     .ValidateOnStart();
 
     var app = builder.Build();
-    appSettings = app.Services.GetRequiredService<IOptions<AppSettings>>().Value;
+    var sqlBlameConfig = app.Services.GetRequiredService<IOptions<SqlBlameConfig>>().Value;
     var figlet = new FigletText(AppName).Centered().Color(Theme.Primary);
     var fullVersion = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "Unknown";
     var semVersion = fullVersion.Split('+')[0];
@@ -36,16 +35,16 @@ try
     AnsiConsole.Write(figlet);
     AnsiConsole.Write(versionText);
     AnsiConsole.Record();
-    var serverPrompt = new TextPrompt<string>("server:").DefaultValue(appSettings.ServerName).ShowDefaultValue();
+    var serverPrompt = new TextPrompt<string>("server:").DefaultValue(sqlBlameConfig.ServerName).ShowDefaultValue();
     var server = AnsiConsole.Prompt(serverPrompt);
 
-    var dbPrompt = new TextPrompt<string>("log database:").DefaultValue(appSettings.Database).ShowDefaultValue();
+    var dbPrompt = new TextPrompt<string>("log database:").DefaultValue(sqlBlameConfig.Database).ShowDefaultValue();
     var db = AnsiConsole.Prompt(dbPrompt);
 
-    var userPrompt = new TextPrompt<string>("user:").DefaultValue(appSettings.User).ShowDefaultValue();
+    var userPrompt = new TextPrompt<string>("user:").DefaultValue(sqlBlameConfig.User).ShowDefaultValue();
     var user = AnsiConsole.Prompt(userPrompt);
 
-    var passPrompt = new TextPrompt<string>("pass:").DefaultValue(appSettings.Password).ShowDefaultValue().Secret();
+    var passPrompt = new TextPrompt<string>("pass:").DefaultValue(sqlBlameConfig.Password).ShowDefaultValue().Secret();
     var pass = AnsiConsole.Prompt(passPrompt);
 
     var connectionString = $"Server={server};Database={db};User ID={user};Password={pass};MultipleActiveResultSets=True;TrustServerCertificate=True";
@@ -56,7 +55,7 @@ try
     var dbs = await repo.GetDbs();
 
     var dbsPrompt = new MultiSelectionPrompt<string>().Title("Select one or more DBs").AddChoices(dbs);
-    foreach (var savedDb in appSettings.SelectedDatabases.Intersect(dbs))
+    foreach (var savedDb in sqlBlameConfig.SelectedDatabases.Intersect(dbs))
     {
         dbsPrompt.Select(savedDb);
     }
@@ -64,24 +63,24 @@ try
 
     AnsiConsole.WriteLine("selected DBs: {0}", string.Join(", ", selectedDbs));
 
-    var defaultsChanged = server != appSettings.ServerName || db != appSettings.Database || user != appSettings.User
-        || !selectedDbs.ToHashSet().SetEquals(appSettings.SelectedDatabases);
+    var defaultsChanged = server != sqlBlameConfig.ServerName || db != sqlBlameConfig.Database || user != sqlBlameConfig.User
+        || !selectedDbs.ToHashSet().SetEquals(sqlBlameConfig.SelectedDatabases);
     var defaultsSaved = false;
     if (defaultsChanged && AnsiConsole.Confirm("Save server, user and selected DBs as defaults?", defaultValue: false))
     {
-        await AppSettings.SaveDefaults(server, db, user, selectedDbs);
+        await SqlBlameConfig.SaveDefaults(server, db, user, selectedDbs);
         defaultsSaved = true;
-        AnsiConsole.MarkupLineInterpolated($"[dim]Saved to {AppSettings.FilePath}[/]");
+        AnsiConsole.MarkupLineInterpolated($"[dim]Saved to {SqlBlameConfig.FilePath}[/]");
     }
 
     // only offer it when the saved server and user match, otherwise the password would end up next to another login
-    var configMatchesLogin = defaultsSaved || (server == appSettings.ServerName && user == appSettings.User);
-    var passChanged = pass.Length > 0 && pass != appSettings.Password;
+    var configMatchesLogin = defaultsSaved || (server == sqlBlameConfig.ServerName && user == sqlBlameConfig.User);
+    var passChanged = pass.Length > 0 && pass != sqlBlameConfig.Password;
     if (configMatchesLogin && passChanged
         && AnsiConsole.Confirm("Save password too? [yellow](stored as plain text)[/]", defaultValue: false))
     {
-        await AppSettings.SaveDefaultPassword(pass);
-        AnsiConsole.MarkupLineInterpolated($"[dim]Saved to {AppSettings.FilePath}[/]");
+        await SqlBlameConfig.SaveDefaultPassword(pass);
+        AnsiConsole.MarkupLineInterpolated($"[dim]Saved to {SqlBlameConfig.FilePath}[/]");
     }
 
     const long RefreshChoice = -1;
@@ -160,7 +159,7 @@ catch (Exception ex)
 {
     AnsiConsole.MarkupLineInterpolated($"[{Theme.Error}]{AppName} encountered an unexpected error.[/]");
     AnsiConsole.WriteException(ex);
-    await ExportLog(AppSettings.DefaultLogsDirectory);
+    await ExportLog(SqlBlameConfig.DefaultLogsDirectory);
 }
 AnsiConsole.Markup("[dim]Press any key to exit...[/]");
 Console.ReadKey(intercept: true);
