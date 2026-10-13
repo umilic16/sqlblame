@@ -15,10 +15,10 @@ try
         .Build();
 
     var sqlBlameConfig = config.Get<SqlBlameConfig>() ?? new();
-    var figlet = new FigletText(AppName).Centered().Color(Theme.Primary);
+    var figlet = new FigletText(AppName).Centered().Color(Theme.Logo);
     var fullVersion = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "Unknown";
     var semVersion = fullVersion.Split('+')[0];
-    var versionText = new Markup($"[dim]Version [bold {Theme.Primary}]{semVersion}[/][/]\n").Centered();
+    var versionText = new Markup($"{Theme.AsMuted("Version")} {Theme.AsAccent(semVersion)}\n").Centered();
     AnsiConsole.Write(figlet);
     AnsiConsole.Write(versionText);
     AnsiConsole.Record();
@@ -52,15 +52,16 @@ try
 
         var header = FormatRow("event-time", "user", "db", "sp-name");
         var prompt = new SelectionPrompt<long>()
-            .Title($"[dim]↑↓ move · type to search · Enter open · Esc quit[/]\n[bold]  {Markup.Escape(header)}[/]")
+            .Title($"{Theme.AsMuted("↑↓ move · type to search · Enter open · Esc quit")}\n  {Theme.AsAccent(header)}")
             .PageSize(Math.Max(3, Console.WindowHeight - 6))
             .EnableSearch()
+            .HighlightStyle(Theme.Selected)
             .AddCancelResult(ExitChoice)
             .AddChoices(RefreshChoice)
             .AddChoices(entries.Select(e => e.Id))
             .DefaultValue(byId.ContainsKey(selectedId) ? selectedId : entries.FirstOrDefault()?.Id ?? RefreshChoice)
             .UseConverter(id => id == RefreshChoice
-                ? "[dim]↻ refresh[/]"
+                ? Theme.AsMuted("↻ refresh")
                 : Markup.Escape(FormatRow(
                     $"{byId[id].EventTime:yyyy-MM-dd HH:mm:ss}",
                     byId[id].User,
@@ -78,31 +79,32 @@ try
 
         var selected = byId[choice];
         AnsiConsole.Clear();
-        AnsiConsole.Write(new Rule(Markup.Escape($"{selected.DatabaseName}.{selected.SchemaName}.{selected.ObjectName} · {selected.EventTime} · {selected.User}")));
+        var ruleLabel = Theme.AsAccent($"{selected.DatabaseName}.{selected.SchemaName}.{selected.ObjectName} · {selected.EventTime} · {selected.User}");
+        AnsiConsole.Write(new Rule(ruleLabel).RuleStyle(Theme.Divider));
         var previous = await repo.GetPreviousVersion(selected);
         if (previous is null)
         {
-            AnsiConsole.MarkupLine("[dim]first recorded version, nothing to compare with[/]");
+            AnsiConsole.MarkupLine(Theme.AsMuted("first recorded version, nothing to compare with"));
             AnsiConsole.WriteLine();
             AnsiConsole.Write(new Text(selected.TsqlCommand));
         }
         else
         {
-            AnsiConsole.MarkupLine($"[dim]compared to {previous.EventTime} · {Markup.Escape(previous.User)}[/]");
+            AnsiConsole.MarkupLine(Theme.AsMuted($"compared to {previous.EventTime} · {previous.User}"));
             AnsiConsole.WriteLine();
             AnsiConsole.Write(RenderDiff(previous.TsqlCommand, selected.TsqlCommand));
         }
         AnsiConsole.WriteLine();
-        AnsiConsole.Markup("[dim]Press any key to go back...[/]");
+        AnsiConsole.Markup(Theme.AsMuted("Press any key to go back..."));
         Console.ReadKey(intercept: true);
     }
 }
 catch (Exception ex)
 {
-    AnsiConsole.MarkupLineInterpolated($"[{Theme.Error}]{AppName} encountered an unexpected error.[/]");
+    AnsiConsole.MarkupLine(Theme.AsError($"{AppName} encountered an unexpected error."));
     AnsiConsole.WriteException(ex);
     await ExportLog(SqlBlameConfig.DefaultLogsDirectory);
-    AnsiConsole.Markup("[dim]Press any key to exit...[/]");
+    AnsiConsole.Markup(Theme.AsMuted("Press any key to exit..."));
     Console.ReadKey(intercept: true);
 }
 
@@ -115,11 +117,11 @@ static async Task ExportLog(string directory)
         var logFilePath = Path.Combine(logDirectory.FullName, $"{DateTime.Now:yyyyMMddHHmmss}.txt");
 
         await File.WriteAllTextAsync(logFilePath, logContent);
-        AnsiConsole.MarkupLineInterpolated($"[dim]Logs exported to:[/] [white link]{Markup.Escape(logFilePath)}[/]");
+        AnsiConsole.MarkupLine($"{Theme.AsMuted("Logs exported to:")} [link]{Markup.Escape(logFilePath)}[/]");
     }
     catch (Exception ex)
     {
-        AnsiConsole.MarkupLineInterpolated($"[{Theme.Error}]Failed to export error log.[/]");
+        AnsiConsole.MarkupLine(Theme.AsError("Failed to export error log."));
         AnsiConsole.WriteException(ex);
     }
     finally
@@ -133,9 +135,9 @@ static IRenderable RenderDiff(string oldText, string newText)
     var rows = DiffBuilder.GetDiff(oldText, newText).Lines
         .Select(line => line.Type switch
         {
-            ChangeType.Inserted => new Text("+ " + line.Text, new Style(Color.Green)),
-            ChangeType.Deleted => new Text("- " + line.Text, new Style(Color.Red)),
-            _ => new Text("  " + line.Text, new Style(Color.Grey)),
+            ChangeType.Inserted => new Text("+ " + line.Text, Theme.DiffAdded),
+            ChangeType.Deleted => new Text("- " + line.Text, Theme.DiffRemoved),
+            _ => new Text("  " + line.Text, Theme.DiffContext),
         });
 
     return new Rows(rows);
