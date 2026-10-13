@@ -1,6 +1,5 @@
 ﻿using System.Reflection;
 using DiffPlex.DiffBuilder.Model;
-using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Spectre.Console;
 using Spectre.Console.Rendering;
@@ -23,53 +22,8 @@ try
     AnsiConsole.Write(figlet);
     AnsiConsole.Write(versionText);
     AnsiConsole.Record();
-    var serverPrompt = new TextPrompt<string>("server:").DefaultValue(sqlBlameConfig.ServerName).ShowDefaultValue();
-    var server = AnsiConsole.Prompt(serverPrompt);
 
-    var dbPrompt = new TextPrompt<string>("log database:").DefaultValue(sqlBlameConfig.Database).ShowDefaultValue();
-    var db = AnsiConsole.Prompt(dbPrompt);
-
-    var userPrompt = new TextPrompt<string>("user:").DefaultValue(sqlBlameConfig.User).ShowDefaultValue();
-    var user = AnsiConsole.Prompt(userPrompt);
-
-    var passPrompt = new TextPrompt<string>("pass:").DefaultValue(sqlBlameConfig.Password).ShowDefaultValue().Secret();
-    var pass = AnsiConsole.Prompt(passPrompt);
-
-    var connectionString = $"Server={server};Database={db};User ID={user};Password={pass};MultipleActiveResultSets=True;TrustServerCertificate=True";
-    var connection = new SqlConnection(connectionString);
-
-    var repo = new Repository(connection);
-
-    var dbs = await repo.GetDbs();
-
-    var dbsPrompt = new MultiSelectionPrompt<string>().Title("Select one or more DBs").AddChoices(dbs);
-    foreach (var savedDb in sqlBlameConfig.SelectedDatabases.Intersect(dbs))
-    {
-        dbsPrompt.Select(savedDb);
-    }
-    var selectedDbs = AnsiConsole.Prompt(dbsPrompt);
-
-    AnsiConsole.WriteLine("selected DBs: {0}", string.Join(", ", selectedDbs));
-
-    var defaultsChanged = server != sqlBlameConfig.ServerName || db != sqlBlameConfig.Database || user != sqlBlameConfig.User
-        || !selectedDbs.ToHashSet().SetEquals(sqlBlameConfig.SelectedDatabases);
-    var defaultsSaved = false;
-    if (defaultsChanged && AnsiConsole.Confirm("Save server, user and selected DBs as defaults?", defaultValue: false))
-    {
-        await SqlBlameConfig.SaveDefaults(server, db, user, selectedDbs);
-        defaultsSaved = true;
-        AnsiConsole.MarkupLineInterpolated($"[dim]Saved to {SqlBlameConfig.FilePath}[/]");
-    }
-
-    // only offer it when the saved server and user match, otherwise the password would end up next to another login
-    var configMatchesLogin = defaultsSaved || (server == sqlBlameConfig.ServerName && user == sqlBlameConfig.User);
-    var passChanged = pass.Length > 0 && pass != sqlBlameConfig.Password;
-    if (configMatchesLogin && passChanged
-        && AnsiConsole.Confirm("Save password too? [yellow](stored as plain text)[/]", defaultValue: false))
-    {
-        await SqlBlameConfig.SaveDefaultPassword(pass);
-        AnsiConsole.MarkupLineInterpolated($"[dim]Saved to {SqlBlameConfig.FilePath}[/]");
-    }
+    var (repo, selectedDbs) = await ConnectionPrompt.Run(sqlBlameConfig);
 
     const long RefreshChoice = -1;
     const long ExitChoice = -2;
