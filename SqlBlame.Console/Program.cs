@@ -2,9 +2,6 @@
 using DiffPlex.DiffBuilder.Model;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using Spectre.Console;
 using Spectre.Console.Rendering;
 using SqlBlame.Console;
@@ -14,20 +11,11 @@ Console.OutputEncoding = System.Text.Encoding.UTF8;
 const string AppName = "SqlBlame";
 try
 {
-    // later sources override earlier ones: config file < SQLBLAME_* env vars < command line
-    var builder = Host.CreateEmptyApplicationBuilder(new());
-    builder.Configuration
+    var config = new ConfigurationBuilder()
         .AddJsonFile(SqlBlameConfig.FilePath, optional: true)
-        .AddEnvironmentVariables("SQLBLAME_")
-        .AddCommandLine(args);
+        .Build();
 
-    builder.Services.AddOptions<SqlBlameConfig>()
-                    .Bind(builder.Configuration)
-                    .ValidateDataAnnotations()
-                    .ValidateOnStart();
-
-    var app = builder.Build();
-    var sqlBlameConfig = app.Services.GetRequiredService<IOptions<SqlBlameConfig>>().Value;
+    var sqlBlameConfig = config.Get<SqlBlameConfig>() ?? new();
     var figlet = new FigletText(AppName).Centered().Color(Theme.Primary);
     var fullVersion = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? "Unknown";
     var semVersion = fullVersion.Split('+')[0];

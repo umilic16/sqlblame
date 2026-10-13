@@ -29,5 +29,3 @@ Connection values are entered on start. After connecting, SqlBlame offers to sav
 ```
 
 The password is saved only if you confirm it, and it is stored as plain text.
-
-Values can also be overridden with environment variables (`SQLBLAME_ServerName`) or command-line arguments (`--ServerName=srv01`).
