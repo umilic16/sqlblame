@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using DiffPlex.DiffBuilder.Model;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -14,7 +15,12 @@ AppSettings appSettings = new();
 const string AppName = "SqlBlame";
 try
 {
-    var builder = Host.CreateApplicationBuilder(args);
+    // later sources override earlier ones: config file < SQLBLAME_* env vars < command line
+    var builder = Host.CreateEmptyApplicationBuilder(new());
+    builder.Configuration
+        .AddJsonFile(AppSettings.FilePath, optional: true)
+        .AddEnvironmentVariables("SQLBLAME_")
+        .AddCommandLine(args);
 
     builder.Services.AddOptions<AppSettings>()
                     .Bind(builder.Configuration)
@@ -30,16 +36,16 @@ try
     AnsiConsole.Write(figlet);
     AnsiConsole.Write(versionText);
     AnsiConsole.Record();
-    var serverPrompt = new TextPrompt<string>("server:").DefaultValue(appSettings.ServerSettings.ServerName).ShowDefaultValue();
+    var serverPrompt = new TextPrompt<string>("server:").DefaultValue(appSettings.ServerName).ShowDefaultValue();
     var server = AnsiConsole.Prompt(serverPrompt);
 
-    var dbPrompt = new TextPrompt<string>("log database:").DefaultValue(appSettings.ServerSettings.Database).ShowDefaultValue();
+    var dbPrompt = new TextPrompt<string>("log database:").DefaultValue(appSettings.Database).ShowDefaultValue();
     var db = AnsiConsole.Prompt(dbPrompt);
 
-    var userPrompt = new TextPrompt<string>("user:").DefaultValue(appSettings.ServerSettings.User).ShowDefaultValue();
+    var userPrompt = new TextPrompt<string>("user:").DefaultValue(appSettings.User).ShowDefaultValue();
     var user = AnsiConsole.Prompt(userPrompt);
 
-    var passPrompt = new TextPrompt<string>("pass:").DefaultValue(appSettings.ServerSettings.Password).ShowDefaultValue().Secret();
+    var passPrompt = new TextPrompt<string>("pass:").DefaultValue(appSettings.Password).ShowDefaultValue().Secret();
     var pass = AnsiConsole.Prompt(passPrompt);
 
     var connectionString = $"Server={server};Database={db};User ID={user};Password={pass};MultipleActiveResultSets=True;TrustServerCertificate=True";
@@ -49,10 +55,34 @@ try
 
     var dbs = await repo.GetDbs();
 
-    var selectedDbs = AnsiConsole.Prompt(
-        new MultiSelectionPrompt<string>().Title("Select one or more DBs").AddChoices(dbs));
+    var dbsPrompt = new MultiSelectionPrompt<string>().Title("Select one or more DBs").AddChoices(dbs);
+    foreach (var savedDb in appSettings.SelectedDatabases.Intersect(dbs))
+    {
+        dbsPrompt.Select(savedDb);
+    }
+    var selectedDbs = AnsiConsole.Prompt(dbsPrompt);
 
     AnsiConsole.WriteLine("selected DBs: {0}", string.Join(", ", selectedDbs));
+
+    var defaultsChanged = server != appSettings.ServerName || db != appSettings.Database || user != appSettings.User
+        || !selectedDbs.ToHashSet().SetEquals(appSettings.SelectedDatabases);
+    var defaultsSaved = false;
+    if (defaultsChanged && AnsiConsole.Confirm("Save server, user and selected DBs as defaults?", defaultValue: false))
+    {
+        await AppSettings.SaveDefaults(server, db, user, selectedDbs);
+        defaultsSaved = true;
+        AnsiConsole.MarkupLineInterpolated($"[dim]Saved to {AppSettings.FilePath}[/]");
+    }
+
+    // only offer it when the saved server and user match, otherwise the password would end up next to another login
+    var configMatchesLogin = defaultsSaved || (server == appSettings.ServerName && user == appSettings.User);
+    var passChanged = pass.Length > 0 && pass != appSettings.Password;
+    if (configMatchesLogin && passChanged
+        && AnsiConsole.Confirm("Save password too? [yellow](stored as plain text)[/]", defaultValue: false))
+    {
+        await AppSettings.SaveDefaultPassword(pass);
+        AnsiConsole.MarkupLineInterpolated($"[dim]Saved to {AppSettings.FilePath}[/]");
+    }
 
     const long RefreshChoice = -1;
     const long ExitChoice = -2;
@@ -130,13 +160,10 @@ catch (Exception ex)
 {
     AnsiConsole.MarkupLineInterpolated($"[{Theme.Error}]{AppName} encountered an unexpected error.[/]");
     AnsiConsole.WriteException(ex);
-    await ExportLog(appSettings.LogsDirectory);
+    await ExportLog(AppSettings.DefaultLogsDirectory);
 }
-if (!appSettings.AutoClose && Environment.UserInteractive && !Console.IsOutputRedirected && !Console.IsInputRedirected)
-{
-    AnsiConsole.Markup("[dim]Press any key to exit...[/]");
-    Console.ReadKey(intercept: true);
-}
+AnsiConsole.Markup("[dim]Press any key to exit...[/]");
+Console.ReadKey(intercept: true);
 
 static async Task ExportLog(string directory)
 {
