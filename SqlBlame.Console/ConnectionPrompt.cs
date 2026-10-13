@@ -20,8 +20,16 @@ internal static class ConnectionPrompt
         var passPrompt = new TextPrompt<string>("pass:").DefaultValue(sqlBlameConfig.Password).ShowDefaultValue().Secret();
         var pass = AnsiConsole.Prompt(passPrompt);
 
-        var connectionString = $"Server={server};Database={db};User ID={user};Password={pass};MultipleActiveResultSets=True;TrustServerCertificate=True";
-        var connection = new SqlConnection(connectionString);
+        var builder = new SqlConnectionStringBuilder
+        {
+            DataSource = server,
+            InitialCatalog = db,
+            UserID = user,
+            Password = pass,
+            MultipleActiveResultSets = true,
+            TrustServerCertificate = true
+        };
+        var connection = new SqlConnection(builder.ConnectionString);
 
         var repo = new Repository(connection);
 
