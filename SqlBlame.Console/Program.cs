@@ -102,9 +102,9 @@ catch (Exception ex)
     AnsiConsole.MarkupLineInterpolated($"[{Theme.Error}]{AppName} encountered an unexpected error.[/]");
     AnsiConsole.WriteException(ex);
     await ExportLog(SqlBlameConfig.DefaultLogsDirectory);
+    AnsiConsole.Markup("[dim]Press any key to exit...[/]");
+    Console.ReadKey(intercept: true);
 }
-AnsiConsole.Markup("[dim]Press any key to exit...[/]");
-Console.ReadKey(intercept: true);
 
 static async Task ExportLog(string directory)
 {
