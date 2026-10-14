@@ -6,5 +6,6 @@
     <PackageReference Include="Dapper" />
     <PackageReference Include="DiffPlex" />
     <PackageReference Include="Microsoft.Data.SqlClient" />
+    <PackageReference Include="System.Security.Cryptography.Pkcs" />
   </ItemGroup>
 </Project>

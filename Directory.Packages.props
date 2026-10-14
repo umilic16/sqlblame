@@ -10,5 +10,7 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.12" />
     <PackageVersion Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" />
     <PackageVersion Include="Spectre.Console" Version="0.57.2" />
+    <!-- Transitive via Microsoft.Data.SqlClient (9.0.18 is vulnerable). Remove once SqlClient pulls a patched version. -->
+    <PackageVersion Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 </Project>
