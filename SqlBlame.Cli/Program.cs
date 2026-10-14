@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Spectre.Console;
-using SqlBlame.Console;
+using SqlBlame.Cli;
 
 Console.OutputEncoding = System.Text.Encoding.UTF8;
 const string AppName = "SqlBlame";

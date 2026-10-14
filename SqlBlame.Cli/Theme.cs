@@ -1,6 +1,6 @@
 ﻿using Spectre.Console;
 
-namespace SqlBlame.Console;
+namespace SqlBlame.Cli;
 
 internal static class Theme
 {

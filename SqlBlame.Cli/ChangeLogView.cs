@@ -2,7 +2,7 @@
 using Spectre.Console;
 using SqlBlame.Core;
 
-namespace SqlBlame.Console;
+namespace SqlBlame.Cli;
 
 internal static class ChangeLogView
 {
@@ -36,7 +36,7 @@ internal static class ChangeLogView
             var header = FormatRow("event-time", "user", "db", "sp-name");
             var prompt = new SelectionPrompt<long>()
                 .Title($"{Theme.AsMuted("↑↓ move · type to search · Enter open · Esc quit")}\n  {Theme.AsAccent(header)}")
-                .PageSize(Math.Max(3, System.Console.WindowHeight - 6))
+                .PageSize(Math.Max(3, Console.WindowHeight - 6))
                 .EnableSearch()
                 .HighlightStyle(Theme.Selected)
                 .AddCancelResult(ExitChoice)
@@ -79,7 +79,7 @@ internal static class ChangeLogView
             }
             AnsiConsole.WriteLine();
             AnsiConsole.Markup(Theme.AsMuted("Press any key to go back..."));
-            System.Console.ReadKey(intercept: true);
+            Console.ReadKey(intercept: true);
         }
     }
 

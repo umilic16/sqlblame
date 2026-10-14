@@ -2,7 +2,7 @@
 using Spectre.Console;
 using SqlBlame.Core;
 
-namespace SqlBlame.Console;
+namespace SqlBlame.Cli;
 
 internal static class ConnectionPrompt
 {

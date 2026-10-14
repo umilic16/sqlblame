@@ -2,7 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>SqlBlame</AssemblyName>
-    <RootNamespace>SqlBlame.Console</RootNamespace>
+    <RootNamespace>SqlBlame.Cli</RootNamespace>
     <Version>0.0.1-dev</Version>
   </PropertyGroup>
 

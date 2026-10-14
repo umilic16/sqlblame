@@ -29,7 +29,7 @@ jobs:
           # Strip the 'v' from the tag (v1.0.3 becomes 1.0.3)
           VERSION="${GITHUB_REF_NAME#v}"
 
-          dotnet pack ./SqlBlame.Console/SqlBlame.Console.csproj -c Release -p:Version="$VERSION" -o ./nuget-out
+          dotnet pack ./SqlBlame.Cli/SqlBlame.Cli.csproj -c Release -p:Version="$VERSION" -o ./nuget-out
           
       # Get a short-lived NuGet API key
       - name: NuGet login (OIDC → temp API key)
