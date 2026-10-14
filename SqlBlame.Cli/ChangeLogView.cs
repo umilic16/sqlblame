@@ -1,5 +1,4 @@
-﻿using DiffPlex.DiffBuilder.Model;
-using Spectre.Console;
+﻿using Spectre.Console;
 using SqlBlame.Core;
 
 namespace SqlBlame.Cli;
@@ -60,40 +59,7 @@ internal static class ChangeLogView
             if (choice == RefreshChoice)
                 continue;
 
-            var selected = byId[choice];
-            AnsiConsole.Clear();
-            var ruleLabel = Theme.AsAccent($"{selected.DatabaseName}.{selected.SchemaName}.{selected.ObjectName} · {selected.EventTime} · {selected.User}");
-            AnsiConsole.Write(new Rule(ruleLabel).RuleStyle(Theme.Divider));
-            var previous = await repo.GetPreviousVersion(selected);
-            if (previous is null)
-            {
-                AnsiConsole.MarkupLine(Theme.AsMuted("first recorded version, nothing to compare with"));
-                AnsiConsole.WriteLine();
-                AnsiConsole.Write(new Text(selected.TsqlCommand));
-            }
-            else
-            {
-                AnsiConsole.MarkupLine(Theme.AsMuted($"compared to {previous.EventTime} · {previous.User}"));
-                AnsiConsole.WriteLine();
-                AnsiConsole.Write(RenderDiff(previous.TsqlCommand, selected.TsqlCommand));
-            }
-            AnsiConsole.WriteLine();
-            AnsiConsole.Markup(Theme.AsMuted("Press any key to go back..."));
-            Console.ReadKey(intercept: true);
+            await DiffView.Show(repo, byId[choice]);
         }
-    }
-
-
-    private static Rows RenderDiff(string oldText, string newText)
-    {
-        var rows = DiffBuilder.GetDiff(oldText, newText).Lines
-            .Select(line => line.Type switch
-            {
-                ChangeType.Inserted => new Text("+ " + line.Text, Theme.DiffAdded),
-                ChangeType.Deleted => new Text("- " + line.Text, Theme.DiffRemoved),
-                _ => new Text("  " + line.Text, Theme.DiffContext),
-            });
-
-        return new Rows(rows);
     }
 }
