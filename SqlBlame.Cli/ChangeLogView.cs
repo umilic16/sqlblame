@@ -17,7 +17,7 @@ internal static class ChangeLogView
 
         while (true)
         {
-            var newEntries = await repo.GetAlterProcedureEntries(lastId, selectedDbs);
+            var newEntries = await repo.GetProcedureChanges(lastId, selectedDbs);
             foreach (var entry in newEntries)
             {
                 entries.Insert(0, entry);

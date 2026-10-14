@@ -5,38 +5,18 @@ namespace SqlBlame.Core;
 
 public class Repository(SqlConnection connection)
 {
+    private static readonly string[] s_procedureEvents = ["CREATE_PROCEDURE", "ALTER_PROCEDURE"];
+
     private readonly SqlConnection _connection = connection;
 
-    public async Task<IEnumerable<string>> GetTsqlCommandBySpName(string schema, string sp)
-    {
-        var tsqlList = await _connection.QueryAsync<string>("""
-            select TsqlCommand
-            from dbo.DdlLog
-            where SchemaName=@schema and ObjectName=@sp
-            """, new { schema, sp });
-
-        return tsqlList;
-    }
-
-    public async Task<DdlLogEntry[]> GetDdlLogEntryBySpName(string schema, string sp)
-    {
-        var tsqlList = await _connection.QueryAsync<DdlLogEntry>("""
-            select *
-            from dbo.DdlLog
-            where SchemaName=@schema and ObjectName=@sp
-            """, new { schema, sp });
-
-        return [.. tsqlList];
-    }
-
-    public async Task<DdlLogEntry[]> GetAlterProcedureEntries(long afterId, List<string> dbs)
+    public async Task<DdlLogEntry[]> GetProcedureChanges(long afterId, List<string> dbs)
     {
         var entries = await _connection.QueryAsync<DdlLogEntry>("""
             select *
             from dbo.DdlLog
-            where EventType in ('CREATE_PROCEDURE', 'ALTER_PROCEDURE') and Id > @afterId and DatabaseName in @dbs
+            where EventType in @eventTypes and Id > @afterId and DatabaseName in @dbs
             order by Id
-            """, new { afterId, dbs });
+            """, new { eventTypes = s_procedureEvents, afterId, dbs });
 
         return [.. entries];
     }
@@ -46,8 +26,8 @@ public class Repository(SqlConnection connection)
         var dbs = await _connection.QueryAsync<string>("""
             select distinct(DatabaseName)
             from dbo.DdlLog
-            where EventType in ('CREATE_PROCEDURE', 'ALTER_PROCEDURE')
-            """);
+            where EventType in @eventTypes
+            """, new { eventTypes = s_procedureEvents });
 
         return [.. dbs];
     }
@@ -58,9 +38,9 @@ public class Repository(SqlConnection connection)
             select top 1 *
             from dbo.DdlLog
             where DatabaseName = @DatabaseName and SchemaName = @SchemaName and ObjectName = @ObjectName
-              and EventType in ('CREATE_PROCEDURE', 'ALTER_PROCEDURE')
+              and EventType in @eventTypes
               and Id < @Id
             order by Id desc
-            """, entry);
+            """, new { entry.DatabaseName, entry.SchemaName, entry.ObjectName, entry.Id, eventTypes = s_procedureEvents });
     }
 }
