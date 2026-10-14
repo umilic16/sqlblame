@@ -3,7 +3,7 @@ name: Build and push to nuget
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
